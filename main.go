@@ -3,12 +3,20 @@ package main
 import (
 	"github.com/uncomfyhalomacro/gator/internal/cli"
 	"github.com/uncomfyhalomacro/gator/internal/config"
+	"github.com/uncomfyhalomacro/gator/internal/database"
 	"log"
 	"os"
+	"database/sql"
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	readConfig := config.Read()
+	db, err := sql.Open("postgres", readConfig.DbUrl)
+	if err != nil {
+    		log.Fatalf("%v",err)
+	}
+	dbQueries := database.New(db)
 	commands := cli.Initialise()
 	if len(os.Args) == 1 {
 		log.Fatalf("gator requires a subcommand")
@@ -21,9 +29,10 @@ func main() {
 		Args: os.Args[2:],
 	}
 	newState := cli.State{
+    		Db:	 dbQueries,
 		Config_p: &readConfig,
 	}
-	err := commands.Run(&newState, newCommand)
+	err = commands.Run(&newState, newCommand)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
