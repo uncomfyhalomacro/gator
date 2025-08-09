@@ -3,10 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
 	"github.com/google/uuid"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
+	"log"
 	"time"
 )
 
@@ -112,4 +112,3 @@ func handlerReset(s *State, cmd Command) error {
 	log.Println("Successfully reset the list of users in the database.")
 	return nil
 }
-
