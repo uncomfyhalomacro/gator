@@ -16,3 +16,6 @@ INSERT INTO feeds (
 )
 
 RETURNING *;
+
+-- name: GetFeeds :many
+SELECT * FROM feeds;
