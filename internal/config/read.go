@@ -59,7 +59,7 @@ func (c *Config) Write() error {
 		log.Fatalf("error occured. error: %v", err)
 	}
 	configFilePath := filepath.Join(homedir, configFileName)
-	configFile, err := os.OpenFile(configFilePath, os.O_WRONLY, os.ModeAppend) // Overwrites instead of appends
+	configFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModeAppend) // Overwrites instead of appends
 	if err != nil {
 		log.Fatalf("cannot open config file. error: %v", err)
 	}
