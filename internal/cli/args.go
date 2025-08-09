@@ -70,16 +70,16 @@ func handlerAddFeed(s *State, cmd Command) error {
 	userInDb, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
 
 	if err != nil {
-    		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
 	}
 
-	feedParams := database.AddFeedParams {
-    		ID: uuid.New(),
-    		CreatedAt: time.Now(),
-    		UpdatedAt: time.Now(),
-    		Name:		cmd.Args[0],
-    		Url:		cmd.Args[1],
-   		UserID:	userInDb.ID,
+	feedParams := database.AddFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.Args[0],
+		Url:       cmd.Args[1],
+		UserID:    userInDb.ID,
 	}
 
 	_, err = state.Db.AddFeed(context.Background(), feedParams)
