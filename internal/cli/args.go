@@ -80,11 +80,11 @@ func handlerGetFeeds(s *State, cmd Command) error {
 	}
 	log.Println("Successfully got the list of feeds in the database:")
 	for _, feed := range allFeeds {
-                	user, err := state.Db.GetUserByID(context.Background(), feed.UserID)
-                	if err != nil {
-                    		return fmt.Errorf("failed to retrieve user from db: %v", err)
-                	}
-			log.Printf("* %s -> %s, added by %s\n", feed.Name, feed.Url, user.Name)
+		user, err := state.Db.GetUserByID(context.Background(), feed.UserID)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve user from db: %v", err)
+		}
+		log.Printf("* %s -> %s, added by %s\n", feed.Name, feed.Url, user.Name)
 	}
 	return nil
 
