@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
+	"github.com/uncomfyhalomacro/gator/internal/rss"
 	"log"
 	"time"
 )
@@ -32,6 +33,7 @@ func Initialise() Commands {
 	c.registerCommand("register", handlerRegister)
 	c.registerCommand("reset", handlerReset)
 	c.registerCommand("users", handlerGetUsers)
+	c.registerCommand("agg", handlerAggregator)
 	return c
 }
 
@@ -49,6 +51,27 @@ func (c *Commands) Run(s *State, cmd Command) error {
 
 func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
+}
+
+func handlerAggregator(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
+	}
+	wagslane := "https://www.wagslane.dev/index.xml"
+	feed, err := rss.FetchFeed(context.Background(), wagslane)
+	if err != nil {
+		return err
+	}
+	log.Println(feed.Channel.Title)
+	log.Println(feed.Channel.Link)
+	log.Println(feed.Channel.Description)
+	for _, item := range feed.Channel.Item {
+		log.Println(item.Title)
+		log.Println(item.Link)
+		log.Println(item.Description)
+		log.Println(item.PubDate)
+	}
+	return nil
 }
 
 func handlerGetUsers(s *State, cmd Command) error {
@@ -76,6 +99,7 @@ func handlerGetUsers(s *State, cmd Command) error {
 	return nil
 
 }
+
 func handlerLogin(s *State, cmd Command) error {
 	if len(cmd.Args) == 0 || cmd.Args == nil {
 		return fmt.Errorf("error, %s needs additional arguments -> a name\n", cmd.Name)
