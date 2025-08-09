@@ -3,9 +3,14 @@ package cli
 import (
 	"fmt"
 	"github.com/uncomfyhalomacro/gator/internal/config"
+	"github.com/uncomfyhalomacro/gator/internal/database"
+	"github.com/google/uuid"
+	"context"
+	"time"
 )
 
 type State struct {
+	Db	 *database.Queries
 	Config_p *config.Config
 }
 
@@ -22,7 +27,8 @@ func Initialise() Commands {
 	mapping := make(map[string]func(*State, Command) error)
 	c := Commands{}
 	c.FuncFromCommand = mapping
-	c.register("login", handlerLogin)
+	c.registerCommand("login", handlerLogin)
+	c.registerCommand("register", handlerRegister)
 	return c
 }
 
@@ -38,22 +44,54 @@ func (c *Commands) Run(s *State, cmd Command) error {
 	return nil
 }
 
-func (c *Commands) register(name string, f func(*State, Command) error) {
+func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
 }
 
 func handlerLogin(s *State, cmd Command) error {
 	if len(cmd.Args) == 0 || cmd.Args == nil {
-		return fmt.Errorf("error, %s needs additional arguments\n", cmd.Name)
+		return fmt.Errorf("error, %s needs additional arguments -> a name\n", cmd.Name)
 	}
 
 	if len(cmd.Args) > 1 {
-		return fmt.Errorf("error, %s only needs one argument\n", cmd.Name)
+		return fmt.Errorf("error, %s only needs one argument -> a name\n", cmd.Name)
 	}
 
 	state := *s
-	config := *state.Config_p
-	config.CurrentUsername = cmd.Args[0]
-	config.Write()
+	_, err := state.Db.GetUser(context.Background(), cmd.Args[0])
+	if err != nil {
+    		return err
+	}
+	state.Config_p.CurrentUsername = cmd.Args[0]
+	state.Config_p.Write()
+	return nil
+}
+
+func handlerRegister(s *State, cmd Command) error {
+	if len(cmd.Args) == 0 || cmd.Args == nil {
+		return fmt.Errorf("error, %s needs additional arguments\n -> a name", cmd.Name)
+	}
+
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("error, %s only needs one argument -> a name\n", cmd.Name)
+	}
+
+	state := *s
+	_, err := state.Db.GetUser(context.Background(), cmd.Args[0])
+	if err == nil {
+    		return fmt.Errorf("error, user '%s' already exists.\n", cmd.Args[0])
+	}
+	userParams := database.CreateUserParams {
+    		ID: uuid.New(),
+    		CreatedAt: time.Now(),
+    		UpdatedAt: time.Now(),
+    		Name: cmd.Args[0],
+	}
+	_, err = state.Db.CreateUser(context.Background(), userParams)
+	if err != nil {
+    		return err
+	}
+	state.Config_p.CurrentUsername = cmd.Args[0]
+	state.Config_p.Write()
 	return nil
 }
