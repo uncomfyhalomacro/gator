@@ -34,6 +34,7 @@ func Initialise() Commands {
 	c.registerCommand("reset", handlerReset)
 	c.registerCommand("users", handlerGetUsers)
 	c.registerCommand("agg", handlerAggregator)
+	c.registerCommand("addfeed", handlerAddFeed)
 	return c
 }
 
@@ -51,6 +52,41 @@ func (c *Commands) Run(s *State, cmd Command) error {
 
 func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
+}
+
+func handlerAddFeed(s *State, cmd Command) error {
+	if len(cmd.Args) < 2 {
+		return fmt.Errorf("error, %s needs two arguments -> a feed title and a feed URL\n", cmd.Name)
+	}
+	state := *s
+	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
+	if !ok {
+		return fmt.Errorf("error -> login first!")
+	}
+
+	if currentLoggedInUsername == "" {
+		return fmt.Errorf("error -> login first!")
+	}
+	userInDb, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
+
+	if err != nil {
+    		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+	}
+
+	feedParams := database.AddFeedParams {
+    		ID: uuid.New(),
+    		CreatedAt: time.Now(),
+    		UpdatedAt: time.Now(),
+    		Name:		cmd.Args[0],
+    		Url:		cmd.Args[1],
+   		UserID:	userInDb.ID,
+	}
+
+	_, err = state.Db.AddFeed(context.Background(), feedParams)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func handlerAggregator(s *State, cmd Command) error {
