@@ -10,6 +10,14 @@ import (
 	"os"
 )
 
+func listCommands(commands cli.Commands) string {
+	var commandListString string
+	for key, _ := range commands.FuncFromCommand {
+		commandListString = commandListString + "* " + key + "\n"
+	}
+	return commandListString
+}
+
 func main() {
 	readConfig := config.Read()
 	db, err := sql.Open("postgres", readConfig.DbUrl)
@@ -19,7 +27,7 @@ func main() {
 	dbQueries := database.New(db)
 	commands := cli.Initialise()
 	if len(os.Args) < 2 {
-		log.Fatalf("gator requires a subcommand")
+		log.Fatalf("gator requires a subcommand. available subcommands:\n%s", listCommands(commands))
 	}
 	newCommand := cli.Command{
 		Name: os.Args[1],
