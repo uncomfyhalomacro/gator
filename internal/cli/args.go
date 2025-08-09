@@ -59,19 +59,19 @@ func handlerGetUsers(s *State, cmd Command) error {
 	var currentUsername string
 	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
 	if ok {
-    		currentUsername = currentLoggedInUsername
+		currentUsername = currentLoggedInUsername
 	}
-allUsers, err := state.Db.GetUsers(context.Background())
+	allUsers, err := state.Db.GetUsers(context.Background())
 	if err != nil {
 		return err
 	}
 	log.Println("Successfully got the list of users in the database:")
 	for _, user := range allUsers {
-    		if  currentUsername == user.Name {
-        		log.Printf("* %s (current)\n", user.Name)
-    		} else {
-        		log.Printf("* %s\n", user.Name)
-    		}
+		if currentUsername == user.Name {
+			log.Printf("* %s (current)\n", user.Name)
+		} else {
+			log.Printf("* %s\n", user.Name)
+		}
 	}
 	return nil
 
