@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log"
 	"github.com/google/uuid"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
@@ -29,6 +30,7 @@ func Initialise() Commands {
 	c.FuncFromCommand = mapping
 	c.registerCommand("login", handlerLogin)
 	c.registerCommand("register", handlerRegister)
+	c.registerCommand("reset", handlerReset)
 	return c
 }
 
@@ -64,6 +66,7 @@ func handlerLogin(s *State, cmd Command) error {
 	}
 	state.Config_p.CurrentUsername = cmd.Args[0]
 	state.Config_p.Write()
+	log.Printf("User '%s' is logged in\n", cmd.Args[0])
 	return nil
 }
 
@@ -93,5 +96,20 @@ func handlerRegister(s *State, cmd Command) error {
 	}
 	state.Config_p.CurrentUsername = cmd.Args[0]
 	state.Config_p.Write()
+	log.Printf("User '%s' is registered\n", cmd.Args[0])
 	return nil
 }
+
+func handlerReset(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
+	}
+	state := *s
+	err := state.Db.ResetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	log.Println("Successfully reset the list of users in the database.")
+	return nil
+}
+
