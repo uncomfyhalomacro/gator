@@ -18,11 +18,8 @@ func main() {
 	}
 	dbQueries := database.New(db)
 	commands := cli.Initialise()
-	if len(os.Args) == 1 {
+	if len(os.Args) < 2 {
 		log.Fatalf("gator requires a subcommand")
-	}
-	if len(os.Args) == 2 {
-		log.Fatalf("gator subcommand requires additional arguments")
 	}
 	newCommand := cli.Command{
 		Name: os.Args[1],
