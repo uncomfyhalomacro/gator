@@ -1,20 +1,20 @@
 package main
 
 import (
+	"database/sql"
+	_ "github.com/lib/pq"
 	"github.com/uncomfyhalomacro/gator/internal/cli"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
 	"log"
 	"os"
-	"database/sql"
-	_ "github.com/lib/pq"
 )
 
 func main() {
 	readConfig := config.Read()
 	db, err := sql.Open("postgres", readConfig.DbUrl)
 	if err != nil {
-    		log.Fatalf("%v",err)
+		log.Fatalf("%v", err)
 	}
 	dbQueries := database.New(db)
 	commands := cli.Initialise()
@@ -29,7 +29,7 @@ func main() {
 		Args: os.Args[2:],
 	}
 	newState := cli.State{
-    		Db:	 dbQueries,
+		Db:       dbQueries,
 		Config_p: &readConfig,
 	}
 	err = commands.Run(&newState, newCommand)

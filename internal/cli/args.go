@@ -1,16 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
-	"github.com/google/uuid"
-	"context"
 	"time"
 )
 
 type State struct {
-	Db	 *database.Queries
+	Db       *database.Queries
 	Config_p *config.Config
 }
 
@@ -60,7 +60,7 @@ func handlerLogin(s *State, cmd Command) error {
 	state := *s
 	_, err := state.Db.GetUser(context.Background(), cmd.Args[0])
 	if err != nil {
-    		return err
+		return err
 	}
 	state.Config_p.CurrentUsername = cmd.Args[0]
 	state.Config_p.Write()
@@ -79,17 +79,17 @@ func handlerRegister(s *State, cmd Command) error {
 	state := *s
 	_, err := state.Db.GetUser(context.Background(), cmd.Args[0])
 	if err == nil {
-    		return fmt.Errorf("error, user '%s' already exists.\n", cmd.Args[0])
+		return fmt.Errorf("error, user '%s' already exists.\n", cmd.Args[0])
 	}
-	userParams := database.CreateUserParams {
-    		ID: uuid.New(),
-    		CreatedAt: time.Now(),
-    		UpdatedAt: time.Now(),
-    		Name: cmd.Args[0],
+	userParams := database.CreateUserParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.Args[0],
 	}
 	_, err = state.Db.CreateUser(context.Background(), userParams)
 	if err != nil {
-    		return err
+		return err
 	}
 	state.Config_p.CurrentUsername = cmd.Args[0]
 	state.Config_p.Write()
