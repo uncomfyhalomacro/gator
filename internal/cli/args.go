@@ -35,6 +35,7 @@ func Initialise() Commands {
 	c.registerCommand("users", handlerGetUsers)
 	c.registerCommand("agg", handlerAggregator)
 	c.registerCommand("addfeed", handlerAddFeed)
+	c.registerCommand("feeds", handlerGetFeeds)
 	return c
 }
 
@@ -52,6 +53,41 @@ func (c *Commands) Run(s *State, cmd Command) error {
 
 func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
+}
+
+func handlerGetFeeds(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
+	}
+	state := *s
+	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
+	if !ok {
+		return fmt.Errorf("error -> login first!")
+	}
+
+	if currentLoggedInUsername == "" {
+		return fmt.Errorf("error -> login first!")
+	}
+	_, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
+
+	if err != nil {
+		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+	}
+
+	allFeeds, err := state.Db.GetFeeds(context.Background())
+	if err != nil {
+		return err
+	}
+	log.Println("Successfully got the list of feeds in the database:")
+	for _, feed := range allFeeds {
+                	user, err := state.Db.GetUserByID(context.Background(), feed.UserID)
+                	if err != nil {
+                    		return fmt.Errorf("failed to retrieve user from db: %v", err)
+                	}
+			log.Printf("* %s -> %s, added by %s\n", feed.Name, feed.Url, user.Name)
+	}
+	return nil
+
 }
 
 func handlerAddFeed(s *State, cmd Command) error {
