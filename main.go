@@ -1,20 +1,30 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/uncomfyhalomacro/gator/internal/cli"
 	"github.com/uncomfyhalomacro/gator/internal/config"
+	"log"
 	"os"
 )
 
 func main() {
-	gatorConfig := config.Read()
-	// Marshalling back to json bytes
-	buf, err := json.Marshal(gatorConfig)
-	if err != nil {
-		fmt.Println("an error occured: %v", err)
-		os.Exit(2)
+	readConfig := config.Read()
+	commands := cli.Initialise()
+	if len(os.Args) == 1 {
+		log.Fatalf("gator requires a subcommand")
 	}
-	fmt.Println(string(buf))
-
+	if len(os.Args) == 2 {
+		log.Fatalf("gator subcommand requires additional arguments")
+	}
+	newCommand := cli.Command{
+		Name: os.Args[1],
+		Args: os.Args[2:],
+	}
+	newState := cli.State{
+		Config_p: &readConfig,
+	}
+	err := commands.Run(&newState, newCommand)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 }

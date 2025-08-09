@@ -19,9 +19,8 @@ func Read() Config {
 	configFilePath := filepath.Join(homedir, configFileName)
 	configFile, err := os.Open(configFilePath)
 	if err != nil {
-		log.Fatalf("cannot read config file. error: %v", err)
+		log.Fatalf("cannot open config file. error: %v", err)
 	}
-	defer configFile.Close()
 	var newConfig Config
 	buf := make([]byte, 1024)
 	var actualReadN int
@@ -41,6 +40,37 @@ func Read() Config {
 	if errJ != nil {
 		log.Fatalf("an error occured: %v", errJ)
 	}
+	err = configFile.Close()
+	if err != nil {
+		log.Fatalf("error occured when closing file. error: %v", err)
+	}
 
 	return newConfig
+}
+
+func (c *Config) Write() error {
+	// Marshalling back to json bytes
+	buf, err := json.Marshal(*c)
+	if err != nil {
+		return fmt.Errorf("error occured while reading JSON config: %v", err)
+	}
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("error occured. error: %v", err)
+	}
+	configFilePath := filepath.Join(homedir, configFileName)
+	configFile, err := os.OpenFile(configFilePath, os.O_WRONLY, os.ModeAppend) // Overwrites instead of appends
+	if err != nil {
+		log.Fatalf("cannot open config file. error: %v", err)
+	}
+	n, err := configFile.Write(buf)
+	if err != nil {
+		log.Fatalf("error occured while writing into file. error: %v", err)
+	}
+	log.Printf("wrote %d bytes to config file\n", n)
+	err = configFile.Close()
+	if err != nil {
+		log.Fatalf("error occured when closing file. error: %v", err)
+	}
+	return nil
 }
