@@ -31,6 +31,7 @@ func Initialise() Commands {
 	c.registerCommand("login", handlerLogin)
 	c.registerCommand("register", handlerRegister)
 	c.registerCommand("reset", handlerReset)
+	c.registerCommand("users", handlerGetUsers)
 	return c
 }
 
@@ -50,6 +51,31 @@ func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
 }
 
+func handlerGetUsers(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
+	}
+	state := *s
+	var currentUsername string
+	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
+	if ok {
+    		currentUsername = currentLoggedInUsername
+	}
+allUsers, err := state.Db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	log.Println("Successfully got the list of users in the database:")
+	for _, user := range allUsers {
+    		if  currentUsername == user.Name {
+        		log.Printf("* %s (current)\n", user.Name)
+    		} else {
+        		log.Printf("* %s\n", user.Name)
+    		}
+	}
+	return nil
+
+}
 func handlerLogin(s *State, cmd Command) error {
 	if len(cmd.Args) == 0 || cmd.Args == nil {
 		return fmt.Errorf("error, %s needs additional arguments -> a name\n", cmd.Name)
