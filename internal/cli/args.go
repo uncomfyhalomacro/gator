@@ -36,8 +36,9 @@ func Initialise(s *State) Commands {
 	c.registerCommand("agg", handlerAggregator)
 	c.registerCommand("addfeed", middlewareLoggedIn(s, handlerAddFeed))
 	c.registerCommand("follow", middlewareLoggedIn(s, handlerFollow))
-	c.registerCommand("following", middlewareLoggedIn(s, handlerFollowing))
+	c.registerCommand("unfollow", middlewareLoggedIn(s, handlerUnfollow))
 	c.registerCommand("feeds", handlerGetFeeds)
+	c.registerCommand("following", handlerFollowing)
 	return c
 }
 
@@ -57,6 +58,25 @@ func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
 }
 
+func handlerUnfollow(s *State, cmd Command) error {
+	if len(cmd.Args) == 0 {
+		return fmt.Errorf("error, %s needs additional arguments -> RSS URLs\n", cmd.Name)
+	}
+	for _, url := range cmd.Args {
+		params := database.UnfollowFeedForUserParams {
+			Name: s.Config_p.CurrentUsername,
+			Url: url,
+		}
+		err := s.Db.UnfollowFeedForUser(context.Background(), params)
+		if err != nil {
+			return fmt.Errorf("error, unable to unfollow feed %s for %s\n", url, s.Config_p.CurrentUsername)
+		} else {
+    			log.Printf("Successfully unfollowed %s for %s\n", url, s.Config_p.CurrentUsername)
+		}
+	}
+	return nil
+}
+
 func middlewareLoggedIn(s *State, handler func(s *State, cmd Command) error) func(*State, Command) error {
 	readConfig := config.Read()
 	if readConfig.CurrentUsername == "" {
@@ -74,9 +94,13 @@ func handlerFollowing(s *State, cmd Command) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("List of feeds followed by user `%s`:\n", s.Config_p.CurrentUsername)
-	for _, feed := range feeds {
-		fmt.Printf("* %s -> %s\n", feed.FeedName, feed.FeedUrl)
+	if len(feeds) > 0 {
+		fmt.Printf("List of feeds followed by user `%s`:\n", s.Config_p.CurrentUsername)
+		for _, feed := range feeds {
+			fmt.Printf("* %s -> %s\n", feed.FeedName, feed.FeedUrl)
+		}
+	} else {
+    		fmt.Printf("User `%s` has not followed a feed yet\n", s.Config_p.CurrentUsername)
 	}
 	return nil
 }
