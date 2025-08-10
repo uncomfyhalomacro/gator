@@ -63,15 +63,15 @@ func handlerUnfollow(s *State, cmd Command) error {
 		return fmt.Errorf("error, %s needs additional arguments -> RSS URLs\n", cmd.Name)
 	}
 	for _, url := range cmd.Args {
-		params := database.UnfollowFeedForUserParams {
+		params := database.UnfollowFeedForUserParams{
 			Name: s.Config_p.CurrentUsername,
-			Url: url,
+			Url:  url,
 		}
 		err := s.Db.UnfollowFeedForUser(context.Background(), params)
 		if err != nil {
 			return fmt.Errorf("error, unable to unfollow feed %s for %s\n", url, s.Config_p.CurrentUsername)
 		} else {
-    			log.Printf("Successfully unfollowed %s for %s\n", url, s.Config_p.CurrentUsername)
+			log.Printf("Successfully unfollowed %s for %s\n", url, s.Config_p.CurrentUsername)
 		}
 	}
 	return nil
@@ -84,7 +84,6 @@ func middlewareLoggedIn(s *State, handler func(s *State, cmd Command) error) fun
 	}
 	return handler
 }
-
 
 func handlerFollowing(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
@@ -100,7 +99,7 @@ func handlerFollowing(s *State, cmd Command) error {
 			fmt.Printf("* %s -> %s\n", feed.FeedName, feed.FeedUrl)
 		}
 	} else {
-    		fmt.Printf("User `%s` has not followed a feed yet\n", s.Config_p.CurrentUsername)
+		fmt.Printf("User `%s` has not followed a feed yet\n", s.Config_p.CurrentUsername)
 	}
 	return nil
 }
@@ -183,7 +182,7 @@ func handlerAddFeed(s *State, cmd Command) error {
 	}
 	userInDb, err := s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 	if err != nil {
-    		return err
+		return err
 	}
 	feedParams := database.AddFeedParams{
 		ID:        uuid.New(),
