@@ -36,6 +36,8 @@ func Initialise() Commands {
 	c.registerCommand("agg", handlerAggregator)
 	c.registerCommand("addfeed", handlerAddFeed)
 	c.registerCommand("feeds", handlerGetFeeds)
+	c.registerCommand("follow", handlerFollow)
+	c.registerCommand("following", handlerFollowing)
 	return c
 }
 
@@ -54,6 +56,92 @@ func (c *Commands) Run(s *State, cmd Command) error {
 func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
 }
+
+func handlerFollowing(s *State, cmd Command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
+	}
+	state := *s
+	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
+	if !ok {
+		return fmt.Errorf("error -> login first!")
+	}
+
+	if currentLoggedInUsername == "" {
+		return fmt.Errorf("error -> login first!")
+	}
+	_, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
+
+	if err != nil {
+		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+	}
+	feeds, err := state.Db.GetFeedFollowsForUser(context.Background(), currentLoggedInUsername)
+	if err != nil {
+    		return err
+	}
+	fmt.Printf("List of feeds followed by user `%s`:\n", currentLoggedInUsername)
+	for _, feed := range feeds {
+		fmt.Printf("* %s -> %s\n", feed.FeedName, feed.FeedUrl)
+	}
+	return nil
+}
+
+func handlerFollow(s *State, cmd Command) error {
+	if len(cmd.Args) == 0 {
+		return fmt.Errorf("error, %s needs additional arguments -> RSS URLs\n", cmd.Name)
+	}
+	state := *s
+	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
+	if !ok {
+		return fmt.Errorf("error -> login first!")
+	}
+
+	if currentLoggedInUsername == "" {
+		return fmt.Errorf("error -> login first!")
+	}
+	_, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
+
+	if err != nil {
+		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+	}
+	for _, url := range cmd.Args {
+    		err = _follow(s, currentLoggedInUsername, url)
+    		if err != nil {
+        		return err
+    		}
+	}
+	return nil
+
+}
+
+func _follow(s *State, loggedInUser, url string) error {
+    state := *s
+    fetchedUser, err := state.Db.GetUser(context.Background(), loggedInUser);
+    if err != nil {
+        return err
+    }
+    fetchedFeed, err := state.Db.GetFeedByURL(context.Background(), url)
+    if err != nil {
+        return err
+    }
+    feedFollowParams := database.CreateFeedFollowParams {
+        ID: uuid.New(),
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+        UserID: fetchedUser.ID,
+        FeedID: fetchedFeed.ID,
+    }
+    rows, err := state.Db.CreateFeedFollow(context.Background(), feedFollowParams)
+    if err != nil {
+        return err
+    }
+    fmt.Println("Updated list of followed RSS feeds:")
+    for _, row := range rows {
+	fmt.Printf("User `%s` follows RSS feed `%s`\n", row.UserName, row.FeedName)
+    }
+    return nil
+}
+
 
 func handlerGetFeeds(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
@@ -119,6 +207,10 @@ func handlerAddFeed(s *State, cmd Command) error {
 	}
 
 	_, err = state.Db.AddFeed(context.Background(), feedParams)
+	if err != nil {
+		return err
+	}
+	err = _follow(s, currentLoggedInUsername, cmd.Args[1])
 	if err != nil {
 		return err
 	}
