@@ -127,3 +127,43 @@ func (q *Queries) GetAllFeedFollows(ctx context.Context) ([]FeedFollow, error) {
 	}
 	return items, nil
 }
+
+const getFeedFollowsForUser = `-- name: GetFeedFollowsForUser :many
+WITH feed_ids AS (
+	SELECT feed_follows.feed_id AS id FROM feed_follows
+	WHERE feed_follows.user_id = (
+	SELECT users.id FROM users
+	WHERE users.name = $1)
+)  SELECT feeds.name AS feed_name, feeds.url AS feed_url FROM feeds
+INNER JOIN
+feed_ids
+ON feed_ids.id = feeds.id
+`
+
+type GetFeedFollowsForUserRow struct {
+	FeedName string
+	FeedUrl  string
+}
+
+func (q *Queries) GetFeedFollowsForUser(ctx context.Context, name string) ([]GetFeedFollowsForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedFollowsForUser, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFeedFollowsForUserRow
+	for rows.Next() {
+		var i GetFeedFollowsForUserRow
+		if err := rows.Scan(&i.FeedName, &i.FeedUrl); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
