@@ -25,17 +25,17 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 	dbQueries := database.New(db)
-	commands := cli.Initialise()
+	newState := cli.State{
+		Db:       dbQueries,
+		Config_p: &readConfig,
+	}
+	commands := cli.Initialise(&newState)
 	if len(os.Args) < 2 {
 		log.Fatalf("gator requires a subcommand. available subcommands:\n%s", listCommands(commands))
 	}
 	newCommand := cli.Command{
 		Name: os.Args[1],
 		Args: os.Args[2:],
-	}
-	newState := cli.State{
-		Db:       dbQueries,
-		Config_p: &readConfig,
 	}
 	err = commands.Run(&newState, newCommand)
 	if err != nil {
