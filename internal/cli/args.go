@@ -1,12 +1,14 @@
 package cli
 
 import (
+    	"os"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
 	"github.com/uncomfyhalomacro/gator/internal/rss"
+	"database/sql"
 	"log"
 	"time"
 )
@@ -25,7 +27,7 @@ type Commands struct {
 	FuncFromCommand map[string]func(*State, Command) error
 }
 
-func Initialise(s *State) Commands {
+func Initialise() Commands {
 	mapping := make(map[string]func(*State, Command) error)
 	c := Commands{}
 	c.FuncFromCommand = mapping
@@ -34,20 +36,59 @@ func Initialise(s *State) Commands {
 	c.registerCommand("reset", handlerReset)
 	c.registerCommand("users", handlerGetUsers)
 	c.registerCommand("agg", handlerAggregator)
-	c.registerCommand("addfeed", middlewareLoggedIn(s, handlerAddFeed))
-	c.registerCommand("follow", middlewareLoggedIn(s, handlerFollow))
-	c.registerCommand("unfollow", middlewareLoggedIn(s, handlerUnfollow))
+	c.registerCommand("addfeed", middlewareLoggedIn(handlerAddFeed))
+	c.registerCommand("follow", middlewareLoggedIn(handlerFollow))
+	c.registerCommand("unfollow", middlewareLoggedIn(handlerUnfollow))
 	c.registerCommand("feeds", handlerGetFeeds)
 	c.registerCommand("following", handlerFollowing)
 	return c
 }
 
-func (c *Commands) Run(s *State, cmd Command) error {
+func middlewareLoggedIn(handler func(s *State, cmd Command) error) func(*State, Command) error {
+	readConfig := config.Read()
+	if readConfig.CurrentUsername == "" {
+		log.Fatalln("error -> login first!")
+	}
+	db, err := sql.Open("postgres", readConfig.DbUrl)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	defer db.Close()
+	dbQueries := database.New(db)
+	s := State{
+		Db:       dbQueries,
+		Config_p: &readConfig,
+	}
+	_, err = s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
+
+	if err != nil {
+    		if !(os.Args[1] == "register" || os.Args[1] == "login") {
+	    		log.Fatalf("User `%s` does not exist in the database. User needs to be registered first!\n", s.Config_p.CurrentUsername)
+    		}
+	}
+	return handler
+}
+
+func (c *Commands) Run(cmd Command) error {
 	r, ok := c.FuncFromCommand[cmd.Name]
 	if !ok {
 		return fmt.Errorf("command `%s` not yet implemented", cmd.Name)
 	}
-	err := r(s, cmd)
+	readConfig := config.Read()
+	if readConfig.CurrentUsername == "" {
+		log.Fatalln("error -> login first!")
+	}
+	db, err := sql.Open("postgres", readConfig.DbUrl)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	defer db.Close()
+	dbQueries := database.New(db)
+	s := State{
+		Db:       dbQueries,
+		Config_p: &readConfig,
+	}
+	err = r(&s, cmd)
 	if err != nil {
 		return err
 	}
@@ -77,13 +118,6 @@ func handlerUnfollow(s *State, cmd Command) error {
 	return nil
 }
 
-func middlewareLoggedIn(s *State, handler func(s *State, cmd Command) error) func(*State, Command) error {
-	readConfig := config.Read()
-	if readConfig.CurrentUsername == "" {
-		log.Fatalln("error -> login first!")
-	}
-	return handler
-}
 
 func handlerFollowing(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
