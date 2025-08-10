@@ -24,7 +24,7 @@ func main() {
 		Name: os.Args[1],
 		Args: os.Args[2:],
 	}
-	err := commands.Run( newCommand)
+	err := commands.Run(newCommand)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

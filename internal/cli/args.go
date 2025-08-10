@@ -1,15 +1,15 @@
 package cli
 
 import (
-    	"os"
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/uncomfyhalomacro/gator/internal/config"
 	"github.com/uncomfyhalomacro/gator/internal/database"
 	"github.com/uncomfyhalomacro/gator/internal/rss"
-	"database/sql"
 	"log"
+	"os"
 	"time"
 )
 
@@ -62,9 +62,9 @@ func middlewareLoggedIn(handler func(s *State, cmd Command) error) func(*State, 
 	_, err = s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 
 	if err != nil {
-    		if !(os.Args[1] == "register" || os.Args[1] == "login") {
-	    		log.Fatalf("User `%s` does not exist in the database. User needs to be registered first!\n", s.Config_p.CurrentUsername)
-    		}
+		if !(os.Args[1] == "register" || os.Args[1] == "login") {
+			log.Fatalf("User `%s` does not exist in the database. User needs to be registered first!\n", s.Config_p.CurrentUsername)
+		}
 	}
 	return handler
 }
@@ -117,7 +117,6 @@ func handlerUnfollow(s *State, cmd Command) error {
 	}
 	return nil
 }
-
 
 func handlerFollowing(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
