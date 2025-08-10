@@ -38,3 +38,13 @@ WITH feed_ids AS (
 INNER JOIN
 feed_ids
 ON feed_ids.id = feeds.id;
+
+-- name: UnfollowFeedForUser :exec
+DELETE FROM feed_follows
+WHERE feed_follows.user_id = (
+	SELECT users.id FROM users
+	WHERE users.name = $1 LIMIT 1
+) AND feed_follows.feed_id = (
+	SELECT feeds.id FROM feeds
+	WHERE feeds.name = $2
+);
