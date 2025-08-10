@@ -46,5 +46,5 @@ WHERE feed_follows.user_id = (
 	WHERE users.name = $1 LIMIT 1
 ) AND feed_follows.feed_id = (
 	SELECT feeds.id FROM feeds
-	WHERE feeds.name = $2
+	WHERE feeds.url = $2 LIMIT 1
 );
