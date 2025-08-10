@@ -25,7 +25,7 @@ type Commands struct {
 	FuncFromCommand map[string]func(*State, Command) error
 }
 
-func Initialise() Commands {
+func Initialise(s *State) Commands {
 	mapping := make(map[string]func(*State, Command) error)
 	c := Commands{}
 	c.FuncFromCommand = mapping
@@ -34,10 +34,10 @@ func Initialise() Commands {
 	c.registerCommand("reset", handlerReset)
 	c.registerCommand("users", handlerGetUsers)
 	c.registerCommand("agg", handlerAggregator)
-	c.registerCommand("addfeed", handlerAddFeed)
+	c.registerCommand("addfeed", middlewareLoggedIn(s, handlerAddFeed))
+	c.registerCommand("follow", middlewareLoggedIn(s, handlerFollow))
+	c.registerCommand("following", middlewareLoggedIn(s, handlerFollowing))
 	c.registerCommand("feeds", handlerGetFeeds)
-	c.registerCommand("follow", handlerFollow)
-	c.registerCommand("following", handlerFollowing)
 	return c
 }
 
@@ -57,29 +57,24 @@ func (c *Commands) registerCommand(name string, f func(*State, Command) error) {
 	c.FuncFromCommand[name] = f
 }
 
+func middlewareLoggedIn(s *State, handler func(s *State, cmd Command) error) func(*State, Command) error {
+	readConfig := config.Read()
+	if readConfig.CurrentUsername == "" {
+		log.Fatalln("error -> login first!")
+	}
+	return handler
+}
+
+
 func handlerFollowing(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
 		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
 	}
-	state := *s
-	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
-	if !ok {
-		return fmt.Errorf("error -> login first!")
-	}
-
-	if currentLoggedInUsername == "" {
-		return fmt.Errorf("error -> login first!")
-	}
-	_, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
-
-	if err != nil {
-		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
-	}
-	feeds, err := state.Db.GetFeedFollowsForUser(context.Background(), currentLoggedInUsername)
+	feeds, err := s.Db.GetFeedFollowsForUser(context.Background(), string(s.Config_p.CurrentUsername))
 	if err != nil {
 		return err
 	}
-	fmt.Printf("List of feeds followed by user `%s`:\n", currentLoggedInUsername)
+	fmt.Printf("List of feeds followed by user `%s`:\n", s.Config_p.CurrentUsername)
 	for _, feed := range feeds {
 		fmt.Printf("* %s -> %s\n", feed.FeedName, feed.FeedUrl)
 	}
@@ -90,22 +85,13 @@ func handlerFollow(s *State, cmd Command) error {
 	if len(cmd.Args) == 0 {
 		return fmt.Errorf("error, %s needs additional arguments -> RSS URLs\n", cmd.Name)
 	}
-	state := *s
-	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
-	if !ok {
-		return fmt.Errorf("error -> login first!")
-	}
-
-	if currentLoggedInUsername == "" {
-		return fmt.Errorf("error -> login first!")
-	}
-	_, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
+	_, err := s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 
 	if err != nil {
-		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", s.Config_p.CurrentUsername)
 	}
 	for _, url := range cmd.Args {
-		err = _follow(s, currentLoggedInUsername, url)
+		err = _follow(s, url)
 		if err != nil {
 			return err
 		}
@@ -114,13 +100,12 @@ func handlerFollow(s *State, cmd Command) error {
 
 }
 
-func _follow(s *State, loggedInUser, url string) error {
-	state := *s
-	fetchedUser, err := state.Db.GetUser(context.Background(), loggedInUser)
+func _follow(s *State, url string) error {
+	fetchedUser, err := s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 	if err != nil {
 		return err
 	}
-	fetchedFeed, err := state.Db.GetFeedByURL(context.Background(), url)
+	fetchedFeed, err := s.Db.GetFeedByURL(context.Background(), url)
 	if err != nil {
 		return err
 	}
@@ -131,7 +116,7 @@ func _follow(s *State, loggedInUser, url string) error {
 		UserID:    fetchedUser.ID,
 		FeedID:    fetchedFeed.ID,
 	}
-	rows, err := state.Db.CreateFeedFollow(context.Background(), feedFollowParams)
+	rows, err := s.Db.CreateFeedFollow(context.Background(), feedFollowParams)
 	if err != nil {
 		return err
 	}
@@ -146,28 +131,19 @@ func handlerGetFeeds(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
 		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
 	}
-	state := *s
-	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
-	if !ok {
-		return fmt.Errorf("error -> login first!")
-	}
-
-	if currentLoggedInUsername == "" {
-		return fmt.Errorf("error -> login first!")
-	}
-	_, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
+	_, err := s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 
 	if err != nil {
-		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", s.Config_p.CurrentUsername)
 	}
 
-	allFeeds, err := state.Db.GetFeeds(context.Background())
+	allFeeds, err := s.Db.GetFeeds(context.Background())
 	if err != nil {
 		return err
 	}
 	log.Println("Successfully got the list of feeds in the database:")
 	for _, feed := range allFeeds {
-		user, err := state.Db.GetUserByID(context.Background(), feed.UserID)
+		user, err := s.Db.GetUserByID(context.Background(), feed.UserID)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve user from db: %v", err)
 		}
@@ -181,21 +157,10 @@ func handlerAddFeed(s *State, cmd Command) error {
 	if len(cmd.Args) < 2 {
 		return fmt.Errorf("error, %s needs two arguments -> a feed title and a feed URL\n", cmd.Name)
 	}
-	state := *s
-	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
-	if !ok {
-		return fmt.Errorf("error -> login first!")
-	}
-
-	if currentLoggedInUsername == "" {
-		return fmt.Errorf("error -> login first!")
-	}
-	userInDb, err := state.Db.GetUser(context.Background(), currentLoggedInUsername)
-
+	userInDb, err := s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 	if err != nil {
-		return fmt.Errorf("it seems user '%s' does not exist. is this user registered?", currentLoggedInUsername)
+    		return err
 	}
-
 	feedParams := database.AddFeedParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -205,11 +170,11 @@ func handlerAddFeed(s *State, cmd Command) error {
 		UserID:    userInDb.ID,
 	}
 
-	_, err = state.Db.AddFeed(context.Background(), feedParams)
+	_, err = s.Db.AddFeed(context.Background(), feedParams)
 	if err != nil {
 		return err
 	}
-	err = _follow(s, currentLoggedInUsername, cmd.Args[1])
+	err = _follow(s, cmd.Args[1])
 	if err != nil {
 		return err
 	}
@@ -241,19 +206,13 @@ func handlerGetUsers(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
 		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
 	}
-	state := *s
-	var currentUsername string
-	currentLoggedInUsername, ok := state.Config_p.CurrentUsername.(string)
-	if ok {
-		currentUsername = currentLoggedInUsername
-	}
-	allUsers, err := state.Db.GetUsers(context.Background())
+	allUsers, err := s.Db.GetUsers(context.Background())
 	if err != nil {
 		return err
 	}
 	log.Println("Successfully got the list of users in the database:")
 	for _, user := range allUsers {
-		if currentUsername == user.Name {
+		if s.Config_p.CurrentUsername == user.Name {
 			log.Printf("* %s (current)\n", user.Name)
 		} else {
 			log.Printf("* %s\n", user.Name)
@@ -272,13 +231,12 @@ func handlerLogin(s *State, cmd Command) error {
 		return fmt.Errorf("error, %s only needs one argument -> a name\n", cmd.Name)
 	}
 
-	state := *s
-	_, err := state.Db.GetUser(context.Background(), cmd.Args[0])
+	_, err := s.Db.GetUser(context.Background(), cmd.Args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("User '%s' is not registered. error: %v", cmd.Args[0], err)
 	}
-	state.Config_p.CurrentUsername = cmd.Args[0]
-	state.Config_p.Write()
+	(*s).Config_p.CurrentUsername = cmd.Args[0]
+	(*s).Config_p.Write()
 	log.Printf("User '%s' is logged in\n", cmd.Args[0])
 	return nil
 }
@@ -292,8 +250,7 @@ func handlerRegister(s *State, cmd Command) error {
 		return fmt.Errorf("error, %s only needs one argument -> a name\n", cmd.Name)
 	}
 
-	state := *s
-	_, err := state.Db.GetUser(context.Background(), cmd.Args[0])
+	_, err := s.Db.GetUser(context.Background(), cmd.Args[0])
 	if err == nil {
 		return fmt.Errorf("error, user '%s' already exists.\n", cmd.Args[0])
 	}
@@ -303,12 +260,12 @@ func handlerRegister(s *State, cmd Command) error {
 		UpdatedAt: time.Now(),
 		Name:      cmd.Args[0],
 	}
-	_, err = state.Db.CreateUser(context.Background(), userParams)
+	_, err = s.Db.CreateUser(context.Background(), userParams)
 	if err != nil {
 		return err
 	}
-	state.Config_p.CurrentUsername = cmd.Args[0]
-	state.Config_p.Write()
+	(*s).Config_p.CurrentUsername = cmd.Args[0]
+	(*s).Config_p.Write()
 	log.Printf("User '%s' is registered\n", cmd.Args[0])
 	return nil
 }
@@ -317,8 +274,7 @@ func handlerReset(s *State, cmd Command) error {
 	if len(cmd.Args) > 0 {
 		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
 	}
-	state := *s
-	err := state.Db.ResetUsers(context.Background())
+	err := s.Db.ResetUsers(context.Background())
 	if err != nil {
 		return err
 	}
