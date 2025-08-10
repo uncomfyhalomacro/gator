@@ -27,3 +27,14 @@ ON users.id = inserted_feed_follow.user_id;
 
 -- name: GetAllFeedFollows :many
 SELECT * FROM feed_follows;
+
+-- name: GetFeedFollowsForUser :many
+WITH feed_ids AS (
+	SELECT feed_follows.feed_id AS id FROM feed_follows
+	WHERE feed_follows.user_id = (
+	SELECT users.id FROM users
+	WHERE users.name = $1)
+)  SELECT feeds.name AS feed_name, feeds.url AS feed_url FROM feeds
+INNER JOIN
+feed_ids
+ON feed_ids.id = feeds.id;
