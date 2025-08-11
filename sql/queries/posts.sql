@@ -29,4 +29,6 @@ WITH feed_ids AS (
 )  SELECT posts.* FROM posts
 INNER JOIN
 feed_ids
-ON feed_ids.id = posts.feed_id;
+ON feed_ids.id = posts.feed_id
+ORDER BY posts.created_at ASC
+LIMIT $2;
