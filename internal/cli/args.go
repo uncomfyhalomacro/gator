@@ -266,14 +266,27 @@ func scrapeFeeds(s *State) error {
 		log.Printf("error, failed to request feed: %v\n", err)
 		return err
 	}
-	log.Println(feed.Channel.Title)
-	log.Println(feed.Channel.Link)
-	log.Println(feed.Channel.Description)
+	commonTimeLayout := "Sun, 10 Aug 2025 16:04:05 +0000"
 	for _, item := range feed.Channel.Item {
-		log.Println(item.Title)
-		log.Println(item.Link)
-		log.Println(item.Description)
-		log.Println(item.PubDate)
+        	createdAt, err := time.Parse(commonTimeLayout, item.PubDate)
+        	if err != nil {
+            		log.Println("error, unable to parse time with the common format")
+            		createdAt = time.Time{}
+        	}
+        	postParams := database.CreatePostParams {
+            		ID: uuid.New(),
+            		CreatedAt  : time.Now(),
+            		UpdatedAt  : time.Now(),
+            		Title      : sql.NullString{String: item.Title, Valid: true},
+            		Url        : sql.NullString{String: item.Link, Valid: true},
+            		Description: sql.NullString{String: item.Description, Valid: true},
+            		PublishedAt: sql.NullTime{Time: createdAt, Valid: true},
+            		FeedID     : feedToFetch.ID,
+        	}
+        	_, err = s.Db.CreatePost(context.Background(), postParams)
+        	if err != nil {
+            		log.Println("error, unable to create post")
+        	}
 	}
 	markParams := database.MarkFeedFetchedParams{
 		UpdatedAt: time.Now(),
