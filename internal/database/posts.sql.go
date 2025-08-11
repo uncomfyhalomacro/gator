@@ -82,10 +82,17 @@ WITH feed_ids AS (
 INNER JOIN
 feed_ids
 ON feed_ids.id = posts.feed_id
+ORDER BY posts.created_at ASC
+LIMIT $2
 `
 
-func (q *Queries) GetPostsForUser(ctx context.Context, name string) ([]Post, error) {
-	rows, err := q.db.QueryContext(ctx, getPostsForUser, name)
+type GetPostsForUserParams struct {
+	Name  string
+	Limit int32
+}
+
+func (q *Queries) GetPostsForUser(ctx context.Context, arg GetPostsForUserParams) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getPostsForUser, arg.Name, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
