@@ -247,11 +247,11 @@ func handlerAggregator(s *State, cmd Command) error {
 	log.Printf("Collecting feeds every %s...", cmd.Args[0])
 	duration, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
-    		log.Fatalf("expected a valid duration string, got %s. Please pass a valid duration string\n", cmd.Args[0])
+		log.Fatalf("expected a valid duration string, got %s. Please pass a valid duration string\n", cmd.Args[0])
 	}
 	ticker := time.NewTicker(duration)
-	for ; ; <- ticker.C {
-    		scrapeFeeds(s)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
 	}
 	return nil
 }
@@ -259,12 +259,12 @@ func handlerAggregator(s *State, cmd Command) error {
 func scrapeFeeds(s *State) error {
 	feedToFetch, err := s.Db.GetNextFeedToFetch(context.Background())
 	if err != nil {
-    		log.Printf("error, failed to fetch next feed: %v\n", err)
+		log.Printf("error, failed to fetch next feed: %v\n", err)
 	}
 	feed, err := rss.FetchFeed(context.Background(), feedToFetch.Url)
 	if err != nil {
-    		log.Printf("error, failed to request feed: %v\n", err)
-    		return err
+		log.Printf("error, failed to request feed: %v\n", err)
+		return err
 	}
 	log.Println(feed.Channel.Title)
 	log.Println(feed.Channel.Link)
@@ -275,13 +275,13 @@ func scrapeFeeds(s *State) error {
 		log.Println(item.Description)
 		log.Println(item.PubDate)
 	}
-	markParams := database.MarkFeedFetchedParams {
-    		UpdatedAt: time.Now(),
-    		ID: feedToFetch.ID,
+	markParams := database.MarkFeedFetchedParams{
+		UpdatedAt: time.Now(),
+		ID:        feedToFetch.ID,
 	}
-	err = s.Db.MarkFeedFetched(context.Background(),  markParams)
+	err = s.Db.MarkFeedFetched(context.Background(), markParams)
 	if err != nil {
-    		log.Fatalf("error, failed to mark feed %s. %v\n", feedToFetch.Name, err)
+		log.Fatalf("error, failed to mark feed %s. %v\n", feedToFetch.Name, err)
 	}
 	return nil
 }
