@@ -10,6 +10,7 @@ import (
 	"github.com/uncomfyhalomacro/gator/internal/rss"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -39,9 +40,38 @@ func Initialise() Commands {
 	c.registerCommand("addfeed", middlewareLoggedIn(handlerAddFeed))
 	c.registerCommand("follow", middlewareLoggedIn(handlerFollow))
 	c.registerCommand("unfollow", middlewareLoggedIn(handlerUnfollow))
+	c.registerCommand("browse", middlewareLoggedIn(handlerBrowse))
 	c.registerCommand("feeds", handlerGetFeeds)
 	c.registerCommand("following", handlerFollowing)
 	return c
+}
+
+func handlerBrowse(s *State, cmd Command) error {
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("error, %s only needs 1 more argument -> a number limit to show posts\n", cmd.Name)
+	}
+	var limit int32 = 2
+	if len(cmd.Args) == 1 {
+    		tmpL, err := strconv.Atoi(cmd.Args[0])
+    		if err != nil {
+        		log.Fatalf("error, expected a valid number, got '%s'\n", cmd.Args[0])
+    		} else {
+        		limit = int32(tmpL)
+    		}
+	}
+	params := database.GetPostsForUserParams {
+    		Name: s.Config_p.CurrentUsername,
+    		Limit: limit,
+	}
+	posts, err := s.Db.GetPostsForUser(context.Background(),  params)
+	if err != nil {
+    		log.Fatalf("error, failed to retrieve posts. %v", err)
+	}
+	for _, post := range posts {
+    		fmt.Printf("URL: %s\nTitle: %s\nPublished on %v\nDescription: %s\n", post.Url.String, post.Title.String, post.PublishedAt.Time, post.Description.String)
+	}
+	return nil
+
 }
 
 func middlewareLoggedIn(handler func(s *State, cmd Command) error) func(*State, Command) error {
@@ -266,9 +296,8 @@ func scrapeFeeds(s *State) error {
 		log.Printf("error, failed to request feed: %v\n", err)
 		return err
 	}
-	commonTimeLayout := "Sun, 10 Aug 2025 16:04:05 +0000"
 	for _, item := range feed.Channel.Item {
-        	createdAt, err := time.Parse(commonTimeLayout, item.PubDate)
+        	createdAt, err := time.Parse(time.RFC1123Z, item.PubDate)
         	if err != nil {
             		log.Println("error, unable to parse time with the common format")
             		createdAt = time.Time{}
