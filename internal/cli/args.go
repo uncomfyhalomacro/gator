@@ -52,23 +52,23 @@ func handlerBrowse(s *State, cmd Command) error {
 	}
 	var limit int32 = 2
 	if len(cmd.Args) == 1 {
-    		tmpL, err := strconv.Atoi(cmd.Args[0])
-    		if err != nil {
-        		log.Fatalf("error, expected a valid number, got '%s'\n", cmd.Args[0])
-    		} else {
-        		limit = int32(tmpL)
-    		}
+		tmpL, err := strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			log.Fatalf("error, expected a valid number, got '%s'\n", cmd.Args[0])
+		} else {
+			limit = int32(tmpL)
+		}
 	}
-	params := database.GetPostsForUserParams {
-    		Name: s.Config_p.CurrentUsername,
-    		Limit: limit,
+	params := database.GetPostsForUserParams{
+		Name:  s.Config_p.CurrentUsername,
+		Limit: limit,
 	}
-	posts, err := s.Db.GetPostsForUser(context.Background(),  params)
+	posts, err := s.Db.GetPostsForUser(context.Background(), params)
 	if err != nil {
-    		log.Fatalf("error, failed to retrieve posts. %v", err)
+		log.Fatalf("error, failed to retrieve posts. %v", err)
 	}
 	for _, post := range posts {
-    		fmt.Printf("URL: %s\nTitle: %s\nPublished on %v\nDescription: %s\n", post.Url.String, post.Title.String, post.PublishedAt.Time, post.Description.String)
+		fmt.Printf("URL: %s\nTitle: %s\nPublished on %v\nDescription: %s\n", post.Url.String, post.Title.String, post.PublishedAt.Time, post.Description.String)
 	}
 	return nil
 
@@ -297,25 +297,25 @@ func scrapeFeeds(s *State) error {
 		return err
 	}
 	for _, item := range feed.Channel.Item {
-        	createdAt, err := time.Parse(time.RFC1123Z, item.PubDate)
-        	if err != nil {
-            		log.Println("error, unable to parse time with the common format")
-            		createdAt = time.Time{}
-        	}
-        	postParams := database.CreatePostParams {
-            		ID: uuid.New(),
-            		CreatedAt  : time.Now(),
-            		UpdatedAt  : time.Now(),
-            		Title      : sql.NullString{String: item.Title, Valid: true},
-            		Url        : sql.NullString{String: item.Link, Valid: true},
-            		Description: sql.NullString{String: item.Description, Valid: true},
-            		PublishedAt: sql.NullTime{Time: createdAt, Valid: true},
-            		FeedID     : feedToFetch.ID,
-        	}
-        	_, err = s.Db.CreatePost(context.Background(), postParams)
-        	if err != nil {
-            		log.Println("error, unable to create post")
-        	}
+		createdAt, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			log.Println("error, unable to parse time with the common format")
+			createdAt = time.Time{}
+		}
+		postParams := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       sql.NullString{String: item.Title, Valid: true},
+			Url:         sql.NullString{String: item.Link, Valid: true},
+			Description: sql.NullString{String: item.Description, Valid: true},
+			PublishedAt: sql.NullTime{Time: createdAt, Valid: true},
+			FeedID:      feedToFetch.ID,
+		}
+		_, err = s.Db.CreatePost(context.Background(), postParams)
+		if err != nil {
+			log.Println("error, unable to create post")
+		}
 	}
 	markParams := database.MarkFeedFetchedParams{
 		UpdatedAt: time.Now(),
