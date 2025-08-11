@@ -238,13 +238,33 @@ func handlerAddFeed(s *State, cmd Command) error {
 }
 
 func handlerAggregator(s *State, cmd Command) error {
-	if len(cmd.Args) > 0 {
-		return fmt.Errorf("error, %s does not need any arguments\n", cmd.Name)
+	if len(cmd.Args) == 0 {
+		return fmt.Errorf("error, %s should take one argument -> a duration string like 1s, 1m, and 1h\n", cmd.Name)
 	}
-	wagslane := "https://www.wagslane.dev/index.xml"
-	feed, err := rss.FetchFeed(context.Background(), wagslane)
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("error, %s should take only one argument -> a duration string like 1s, 1m, and 1h\n", cmd.Name)
+	}
+	log.Printf("Collecting feeds every %s...", cmd.Args[0])
+	duration, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
-		return err
+    		log.Fatalf("expected a valid duration string, got %s. Please pass a valid duration string\n", cmd.Args[0])
+	}
+	ticker := time.NewTicker(duration)
+	for ; ; <- ticker.C {
+    		scrapeFeeds(s)
+	}
+	return nil
+}
+
+func scrapeFeeds(s *State) error {
+	feedToFetch, err := s.Db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+    		log.Printf("error, failed to fetch next feed: %v\n", err)
+	}
+	feed, err := rss.FetchFeed(context.Background(), feedToFetch.Url)
+	if err != nil {
+    		log.Printf("error, failed to request feed: %v\n", err)
+    		return err
 	}
 	log.Println(feed.Channel.Title)
 	log.Println(feed.Channel.Link)
@@ -254,6 +274,14 @@ func handlerAggregator(s *State, cmd Command) error {
 		log.Println(item.Link)
 		log.Println(item.Description)
 		log.Println(item.PubDate)
+	}
+	markParams := database.MarkFeedFetchedParams {
+    		UpdatedAt: time.Now(),
+    		ID: feedToFetch.ID,
+	}
+	err = s.Db.MarkFeedFetched(context.Background(),  markParams)
+	if err != nil {
+    		log.Fatalf("error, failed to mark feed %s. %v\n", feedToFetch.Name, err)
 	}
 	return nil
 }
