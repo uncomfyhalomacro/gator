@@ -92,9 +92,11 @@ func middlewareLoggedIn(handler func(s *State, cmd Command) error) func(*State, 
 	_, err = s.Db.GetUser(context.Background(), s.Config_p.CurrentUsername)
 
 	if err != nil {
-		if !(os.Args[1] == "register" || os.Args[1] == "login") {
-			log.Fatalf("User `%s` does not exist in the database. User needs to be registered first!\n", s.Config_p.CurrentUsername)
-		}
+    		if len(os.Args) > 1 {
+			if !(os.Args[1] == "register" || os.Args[1] == "login") {
+				log.Fatalf("User `%s` does not exist in the database. User needs to be registered first!\n", s.Config_p.CurrentUsername)
+			}
+    		}
 	}
 	return handler
 }
