@@ -98,6 +98,12 @@ The JSON file should have this structure (when prettified):
 
 The `db_url` is your connection string, appended with `?sslmode=disable`.
 
+## Install and Run SQLC
+
+You need `sqlc` to generate Go code. See <https://docs.sqlc.dev/en/latest/overview/install.html>.
+
+Then run `sqlc generate` to generate Go code.
+
 ## Build the gator command
 
 ```bash
